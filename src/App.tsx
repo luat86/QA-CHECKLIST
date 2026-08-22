@@ -175,6 +175,24 @@ export default function App() {
     setCurrentId(id);
   };
 
+  const handleDeleteSession = (idToDel: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const confirmDelete = window.confirm('Bạn có chắc chắn muốn xóa hồ sơ này?');
+    if (!confirmDelete) return;
+
+    setSessions(prev => {
+      const newSessions = prev.filter(s => s.id !== idToDel);
+      if (currentId === idToDel) {
+        if (newSessions.length > 0) {
+          setCurrentId(newSessions[0].id);
+        } else {
+          setCurrentId(null);
+        }
+      }
+      return newSessions;
+    });
+  };
+
   const exportImage = async (msgId: string) => {
     const element = pageRefs.current[msgId];
     if (!element) return;
@@ -250,9 +268,16 @@ export default function App() {
           </button>
           <div className="flex-1 overflow-y-auto space-y-1">
             {sessions.map(s => (
-              <button key={s.id} onClick={() => setCurrentId(s.id)} className={`w-full text-left p-2 rounded text-[10px] font-bold border transition-all ${s.id === currentId ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-500 border-transparent hover:bg-slate-50'}`}>
-                <div className="truncate uppercase">{s.title}</div>
-              </button>
+              <div key={s.id} onClick={() => setCurrentId(s.id)} className={`w-full group cursor-pointer flex items-center justify-between p-2 rounded text-[10px] font-bold border transition-all ${s.id === currentId ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-500 border-transparent hover:bg-slate-50'}`}>
+                <div className="truncate uppercase outline-none">{s.title}</div>
+                <button 
+                  onClick={(e) => handleDeleteSession(s.id, e)} 
+                  className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ${s.id === currentId ? 'hover:bg-indigo-700 text-white' : 'hover:bg-slate-200 text-red-500'}`}
+                  title="Xóa hồ sơ"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -263,10 +288,10 @@ export default function App() {
         <header className="no-print h-12 bg-white/90 border-b flex items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1.5 hover:bg-slate-100 rounded text-slate-500"><LayoutPanelLeft size={18} /></button>
-            <h2 className="text-[10px] font-black uppercase text-slate-400">{currentSession?.title}</h2>
+            <h2 className="text-[10px] font-black uppercase text-slate-400">{currentSession ? currentSession.title : 'Chưa có hồ sơ'}</h2>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handlePrint} className="flex items-center gap-1 px-3 py-1 bg-slate-900 text-white rounded text-[10px] font-bold hover:bg-black transition-all">
+            <button onClick={handlePrint} disabled={!currentSession} className="flex items-center gap-1 px-3 py-1 bg-slate-900 text-white rounded text-[10px] font-bold hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed">
               <Printer size={12} /> IN (PDF)
             </button>
             <button onClick={() => setIsCatalogOpen(!isCatalogOpen)} className={`p-1.5 rounded transition-all ${isCatalogOpen ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500'}`}>
@@ -275,60 +300,74 @@ export default function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-300/50 print:p-0 print:bg-white">
-          <div className="max-w-[210mm] mx-auto pb-32 print:pb-0">
-            {currentSession?.messages.map((m: any, idx: number) => (
-              m.role === 'model' ? (
-                <div key={m.id} className="relative group">
-                  <A4Page 
-                    pageRef={(el: HTMLDivElement | null) => { pageRefs.current[m.id] = el; }}
-                    content={m.content} 
-                    title={currentSession.title} 
-                    docId={m.id}
-                  />
-                  {/* Floating Action Menu cho từng trang */}
-                  <div className="no-print absolute top-2 right-[-50px] flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => exportImage(m.id)}
-                      className="p-2 bg-white border border-slate-300 rounded-full shadow-lg hover:bg-indigo-50 text-indigo-600"
-                      title="Xuất ảnh PNG"
-                    >
-                      <Camera size={18} />
-                    </button>
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-300/50 print:p-0 print:bg-white flex flex-col">
+          {!currentSession ? (
+            <div className="flex-1 flex flex-col items-center justify-center h-full">
+              <div className="text-center text-slate-400">
+                <FileText size={48} className="mx-auto mb-3 opacity-50" />
+                <p className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-500">Chưa có hồ sơ nào</p>
+                <button onClick={handleNewSession} className="px-5 py-2 bg-indigo-600 text-white rounded font-bold text-xs uppercase tracking-wider shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2 mx-auto">
+                  <Plus size={14} /> Tạo mới ngay
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-[210mm] mx-auto pb-32 print:pb-0 w-full">
+              {currentSession?.messages.map((m: any, idx: number) => (
+                m.role === 'model' ? (
+                  <div key={m.id} className="relative group">
+                    <A4Page 
+                      pageRef={(el: HTMLDivElement | null) => { pageRefs.current[m.id] = el; }}
+                      content={m.content} 
+                      title={currentSession.title} 
+                      docId={m.id}
+                    />
+                    {/* Floating Action Menu cho từng trang */}
+                    <div className="no-print absolute top-2 right-[-50px] flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => exportImage(m.id)}
+                        className="p-2 bg-white border border-slate-300 rounded-full shadow-lg hover:bg-indigo-50 text-indigo-600"
+                        title="Xuất ảnh PNG"
+                      >
+                        <Camera size={18} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div key={m.id} className="no-print flex justify-end mb-4 pr-4">
-                   <div className="bg-white border border-slate-300 text-slate-800 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter">
-                    {m.content}
+                ) : (
+                  <div key={m.id} className="no-print flex justify-end mb-4 pr-4">
+                     <div className="bg-white border border-slate-300 text-slate-800 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter">
+                      {m.content}
+                    </div>
                   </div>
-                </div>
-              )
-            ))}
-            {isLoading && (
-               <div className="no-print a4-container mx-auto bg-white/50 h-64 flex flex-col items-center justify-center border border-dashed border-slate-400">
-                 <Loader2 className="animate-spin text-slate-500 mb-2" size={24} />
-                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.5em]">Đang xử lý hồ sơ...</span>
-               </div>
-            )}
-          </div>
+                )
+              ))}
+              {isLoading && (
+                 <div className="no-print a4-container mx-auto bg-white/50 h-64 flex flex-col items-center justify-center border border-dashed border-slate-400">
+                   <Loader2 className="animate-spin text-slate-500 mb-2" size={24} />
+                   <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.5em]">Đang xử lý hồ sơ...</span>
+                 </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Ô nhập liệu - Ẩn khi in */}
-        <div className="no-print absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-lg px-4">
-          <div className="bg-white border-2 border-slate-900 rounded-lg p-1 flex items-center shadow-2xl">
-            <input 
-              value={input} 
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="Yêu cầu lập checklist..." 
-              className="flex-1 border-none focus:ring-0 text-xs font-bold px-3 py-2 outline-none"
-            />
-            <button onClick={() => handleSend()} className="bg-slate-900 text-white p-2 rounded hover:bg-black">
-              <Send size={16} />
-            </button>
+        {currentSession && (
+          <div className="no-print absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-lg px-4">
+            <div className="bg-white border-2 border-slate-900 rounded-lg p-1 flex items-center shadow-2xl">
+              <input 
+                value={input} 
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSend()}
+                placeholder="Yêu cầu lập checklist..." 
+                className="flex-1 border-none focus:ring-0 text-xs font-bold px-3 py-2 outline-none"
+              />
+              <button onClick={() => handleSend()} className="bg-slate-900 text-white p-2 rounded hover:bg-black">
+                <Send size={16} />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </main>
 
       {/* Sidebar Thư viện - Ẩn khi in */}
