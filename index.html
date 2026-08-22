@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Google AI Studio App</title>
+    <script>
+      // Polyfill for process to prevent errors with Node-based SDKs like @google/genai
+      window.process = { env: {}, versions: { node: '20' } };
+    </script>
   </head>
   <body>
     <div id="root"></div>
