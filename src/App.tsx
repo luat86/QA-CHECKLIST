@@ -6,12 +6,9 @@ import {
   Download, LayoutPanelLeft, Settings, Info, Camera, Edit2, Stamp
 } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
-import { GoogleGenAI } from '@google/genai';
 import { QRCodeSVG } from 'qrcode.react';
 
 // --- Configuration ---
-const MODEL_NAME = "gemini-3.8-flash";
-
 const CONSTRUCTION_DATA = {
   materials: ["Bê tông", "Cốt thép", "Xi măng", "Cát", "Đá", "Gạch", "Vữa", "Gạch ốp lát", "Sơn", "Kính", "Ống nhựa"],
   tasks: ["Trắc đạc", "Đào đất", "Cốt thép", "Ván khuôn", "Đổ bê tông", "Xây tường", "Trát tường", "Lát nền", "Sơn bả", "Điện nước"]
@@ -453,27 +450,26 @@ export default function App() {
     } : s));
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const response = await ai.models.generateContent({
-        model: MODEL_NAME,
-        contents: updatedMessages.map(m => ({
-          role: m.role === 'model' ? 'model' : 'user',
-          parts: [{ text: m.content }]
-        })),
-        config: {
-          systemInstruction: "Bạn là kỹ sư QA/QC chuyên nghiệp. Lập hồ sơ kỹ thuật dưới dạng Bảng Thông số kỹ thuật (Spec) chi tiết. Bắt buộc xuất bảng (Markdown) gồm các cột: STT | Chỉ tiêu kiểm tra | Yêu cầu kỹ thuật (Spec/Dung sai) | Tiêu chuẩn áp dụng | Phương pháp kiểm tra. Chỉ xuất bảng và checklist ngắn gọn. KHÔNG chào hỏi, không diễn giải."
-        }
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: updatedMessages, title: finalTitle })
       });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || data.message || "Lỗi server");
+      }
 
-      const botText = response.text || "Lỗi.";
+      const botText = data.text || "Lỗi.";
       const botMsg = { id: generateId(), role: 'model', content: botText };
       setSessions(prev => prev.map(s => s.id === targetId ? { ...s, messages: [...updatedMessages, botMsg], updatedAt: Date.now() } : s));
     } catch (err: any) { 
       console.error(err); 
       
-      let errorMsg = "Đã xảy ra lỗi khi tạo hồ sơ. Vui lòng thử lại sau.";
-      if (err?.message?.includes('429') || err?.status === 429 || err?.message?.includes('Quota exceeded')) {
+      let errorMsg = err.message || "Đã xảy ra lỗi khi tạo hồ sơ. Vui lòng thử lại sau.";
+      if (errorMsg.includes('429') || errorMsg.includes('Quota exceeded')) {
         errorMsg = "Đã vượt quá giới hạn lượt sử dụng AI miễn phí (Rate Limit). Vui lòng đợi 1 phút và thử lại.";
       }
       

@@ -1,5 +1,8 @@
 {
   "name": "PLAYBOOK QA- CHECKLIST",
   "description": "An application to generate QA/QC technical documents, checklists, and tables for construction materials and tasks, formatted as A4 pages.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
